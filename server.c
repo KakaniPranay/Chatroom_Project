@@ -1,6 +1,5 @@
 // server.c
 
-// Always include stdio.h first
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -153,46 +152,28 @@ void *handle_client(void *arg)
 
         if (strncmp(buffer, "/msg ", 5) == 0)
         {
-
             char target[NAME_LEN];
-
             char *msg_start;
-
-            sscanf(buffer + 5, "%s", target);
-
-            msg_start = strchr(buffer + 5, ' ');
-
-            if (msg_start != NULL)
+            // Robust parsing: extract username and message
+            char *cmd = strtok(buffer, " "); // /msg
+            char *username = strtok(NULL, " ");
+            msg_start = strtok(NULL, ""); // the rest of the message
+            if (username && msg_start && strlen(msg_start) > 0)
             {
-
-                msg_start = strchr(msg_start + 1, ' ');
-
-                if (msg_start != NULL)
+                int target_fd = find_client_by_name(username);
+                if (target_fd != -1)
                 {
-
-                    msg_start++;
-
-                    int target_fd = find_client_by_name(target);
-
-                    if (target_fd != -1)
-                    {
-
-                        snprintf(full_msg, sizeof(full_msg), "[Private from %s]: ", name);
-
-                        size_t offset = strlen(full_msg);
-
-                        strncat(full_msg, msg_start, sizeof(full_msg) - offset - 2);
-
-                        strcat(full_msg, "\n");
-
-                        send(target_fd, full_msg, strlen(full_msg), 0);
-                    }
-                    else
-                    {
-
-                        send(client_sock, "User not found.\n", 16, 0);
-                    }
+                    snprintf(full_msg, sizeof(full_msg), "[Private from %s]: %s\n", name, msg_start);
+                    send(target_fd, full_msg, strlen(full_msg), 0);
                 }
+                else
+                {
+                    send(client_sock, "User not found.\n", 16, 0);
+                }
+            }
+            else
+            {
+                send(client_sock, "Usage: /msg <username> <message>\n", 32, 0);
             }
         }
         else
